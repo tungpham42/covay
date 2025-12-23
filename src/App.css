@@ -1,0 +1,341 @@
+/* src/App.css */
+@import url("https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap");
+
+body {
+  margin: 0;
+  background-color: #f4ecd8;
+  font-family: "Quicksand", sans-serif;
+  overflow: hidden; /* Chặn cuộn trang */
+}
+
+/* --- Layout Tổng (Mặc định: Desktop > 968px) --- */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+  padding: 10px;
+  gap: 20px;
+}
+
+/* Sidebar bên trái cho Desktop */
+.sidebar {
+  flex: 0 0 320px; /* Chiều rộng cố định 320px */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  z-index: 10;
+}
+
+/* Khu vực bàn cờ bên phải */
+.board-area {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+/* --- Responsive & Breakpoint 968px (Tablet/Mobile) --- */
+@media (max-width: 968px) {
+  .app-layout {
+    flex-direction: column; /* Xếp dọc */
+    padding: 0; /* Xóa padding thừa của body */
+    gap: 0; /* Xóa khoảng cách giữa các phần tử flex */
+    height: 100vh; /* Chiều cao bằng màn hình */
+    height: 100dvh; /* Dynamic Viewport Height: Fix lỗi thanh địa chỉ trên iOS/Android */
+    overflow: hidden; /* Cấm cuộn tuyệt đối */
+  }
+
+  /* 1. HEADER (Trên cùng) */
+  .sidebar {
+    flex: 0 0 50px; /* Cố định chiều cao 50px */
+    width: 100%;
+    flex-direction: row; /* Xếp ngang nội dung bên trong */
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px;
+    box-sizing: border-box;
+    background: white;
+    border-bottom: 1px solid #efebe9;
+    z-index: 20;
+  }
+
+  .game-title {
+    font-size: 1.2rem !important;
+    margin: 0;
+  }
+  .status-card {
+    display: none !important;
+  } /* Ẩn thẻ điểm to */
+
+  .mobile-status {
+    display: flex !important;
+    flex: 1;
+    justify-content: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #5d4037;
+  }
+
+  /* 2. BOARD AREA (Ở giữa - Tự co giãn) */
+  .board-area {
+    flex: 1; /* Chiếm toàn bộ không gian còn lại */
+    display: flex;
+    justify-content: center; /* Căn giữa ngang */
+    align-items: center; /* Căn giữa dọc */
+    width: 100%;
+    position: relative;
+    overflow: hidden; /* Đảm bảo không có gì tràn ra ngoài */
+    padding: 10px; /* Khoảng đệm an toàn */
+    box-sizing: border-box;
+  }
+
+  /* --- LOGIC CỐT LÕI ĐỂ BÀN CỜ KHÔNG BỊ CHE --- */
+  .go-board {
+    /* Công thức min(): Chọn giá trị nhỏ nhất giữa chiều rộng và chiều cao khả dụng.
+       1. 95vw:  Chiều rộng tối đa là 95% bề ngang màn hình.
+       2. calc(100dvh - 130px): Chiều cao màn hình TRỪ ĐI (Header 50px + Footer 60px + Padding 20px).
+    */
+    width: min(95vw, calc(100dvh - 130px)) !important;
+
+    height: auto; /* Chiều cao tự tính theo width */
+    aspect-ratio: 1 / 1; /* Luôn vuông */
+    margin: 0 auto;
+
+    /* Đảm bảo layer hiển thị đúng */
+    z-index: 10;
+  }
+
+  /* 3. FOOTER CONTROLS (Dưới cùng) */
+  .controls-wrapper {
+    flex: 0 0 60px; /* Cố định chiều cao 60px */
+    width: 100%;
+    background: white;
+    border-top: 1px solid #efebe9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: static; /* Nằm yên ở vị trí cuối cùng, KHÔNG trôi nổi (fixed) */
+    z-index: 20;
+    padding-bottom: env(
+      safe-area-inset-bottom
+    ); /* Fix cho iPhone X/11/12... không bị che bởi thanh Home */
+  }
+
+  /* Style lại nút bấm trên mobile cho gọn */
+  .btn-primary {
+    padding: 8px 24px;
+    font-size: 0.9rem;
+    width: auto;
+    box-shadow: none;
+    background: #5d4037;
+  }
+}
+
+/* --- UI Components --- */
+
+.game-title {
+  font-size: 3rem;
+  color: #5d4037;
+  text-align: center;
+  margin-bottom: 10px;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
+}
+
+.status-card {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 10px 20px rgba(93, 64, 55, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  border: 2px solid #efebe9;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+.player-row.active {
+  background-color: #fbe9e7;
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.av-black {
+  background: #333;
+  color: white;
+  border: 2px solid #555;
+}
+.av-white {
+  background: #fff;
+  color: #333;
+  border: 2px solid #ddd;
+}
+
+.turn-indicator {
+  text-align: center;
+  font-weight: bold;
+  color: #8d6e63;
+  font-size: 1.1rem;
+}
+
+.btn-primary {
+  background: #8d6e63;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-family: inherit;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #5d4037;
+  transition: all 0.1s;
+  min-width: 140px; /* Đảm bảo nút không quá bé */
+}
+.btn-primary:active {
+  transform: translateY(4px);
+  box-shadow: none;
+}
+
+/* --- BÀN CỜ (Go Board) --- */
+.go-board {
+  /* Logic kích thước:
+     - Desktop: chiếm phần lớn không gian Board Area.
+     - Mobile/Tablet (<968px): Tự động co nhỏ để vừa chiều ngang HOẶC chiều dọc
+  */
+  width: min(92vmin, 650px);
+  aspect-ratio: 1 / 1;
+
+  display: grid;
+  background-color: #dcb35c;
+  background-image: repeating-linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.02) 0px,
+      rgba(0, 0, 0, 0.02) 2px,
+      transparent 2px,
+      transparent 8px
+    ),
+    radial-gradient(at 50% 50%, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.1));
+
+  border-radius: 5px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), inset 0 0 0 2px #5e4018;
+  padding: 8px;
+  position: relative;
+}
+
+/* Tinh chỉnh đặc biệt cho Mobile Landscape (Xoay ngang điện thoại) */
+@media (max-height: 500px) and (max-width: 968px) {
+  .app-layout {
+    flex-direction: row;
+  } /* Quay về layout ngang nếu màn hình quá thấp */
+  .sidebar {
+    width: 200px;
+    height: 100vh;
+    flex-direction: column;
+    background: none;
+  }
+  .controls-wrapper {
+    position: static;
+    transform: none;
+    box-shadow: none;
+    background: none;
+    flex-direction: column;
+  }
+  .mobile-status {
+    display: none !important;
+  } /* Ẩn bớt text */
+}
+
+/* Các class phụ trợ cho Cell (giữ nguyên) */
+.board-cell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+.grid-line {
+  position: absolute;
+  background: #5e4018;
+  z-index: 0;
+}
+.grid-line.h {
+  width: 100%;
+  height: 1px;
+}
+.grid-line.v {
+  height: 100%;
+  width: 1px;
+}
+.hoshi {
+  width: 18%;
+  height: 18%;
+  background: #5e4018;
+  border-radius: 50%;
+  position: absolute;
+  z-index: 0;
+}
+.stone {
+  width: 94%;
+  height: 94%;
+  border-radius: 50%;
+  z-index: 2;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
+  animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.stone.black {
+  background: radial-gradient(circle at 30% 30%, #666, #000);
+}
+.stone.white {
+  background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+}
+.last-move {
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  position: absolute;
+  z-index: 3;
+  border: 2px solid;
+}
+.stone.black .last-move {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+.stone.white .last-move {
+  border-color: rgba(0, 0, 0, 0.7);
+}
+@keyframes popIn {
+  from {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Mặc định ẩn status mobile */
+.mobile-status {
+  display: none;
+}
