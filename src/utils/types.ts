@@ -4,7 +4,8 @@ export type BoardState = CellValue[][];
 
 export interface MoveResult {
   isValid: boolean;
-  newBoard?: BoardState;
   message?: string;
+  newBoard?: BoardState;
   capturedCount?: number;
+  nextKoPos?: string | null; // New field to track Ko
 }

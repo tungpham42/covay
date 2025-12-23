@@ -1,10 +1,19 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { notification } from "antd";
-import { ReloadOutlined } from "@ant-design/icons";
+import { notification, Modal } from "antd"; // Import thêm Modal
+import {
+  ReloadOutlined,
+  TrophyOutlined,
+  FrownOutlined,
+} from "@ant-design/icons";
 import Board from "./components/Board";
 import { BOARD_SIZE } from "./utils/constants";
 import { BoardState, Player } from "./utils/types";
-import { tryPlaceStone, getBestMove } from "./utils/gameLogic";
+// Đảm bảo bạn đã export hasAnyValidMoves từ gameLogic.ts như hướng dẫn trước
+import {
+  tryPlaceStone,
+  getBestMove,
+  hasAnyValidMoves,
+} from "./utils/gameLogic";
 import "./App.css";
 
 const App: React.FC = () => {
@@ -18,12 +27,42 @@ const App: React.FC = () => {
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [lastMove, setLastMove] = useState<[number, number] | null>(null);
   const [prisoners, setPrisoners] = useState({ black: 0, white: 0 });
+  const [koPos, setKoPos] = useState<string | null>(null);
+
+  // State mới để xác định người thắng
+  const [winner, setWinner] = useState<Player | null>(null);
+
+  // --- HELPER: XỬ LÝ KẾT THÚC GAME ---
+  const handleGameOver = (winningPlayer: Player) => {
+    setWinner(winningPlayer);
+    setIsAiThinking(false);
+
+    if (winningPlayer === "black") {
+      Modal.success({
+        title: "CHIẾN THẮNG!",
+        content: "Chúc mừng! Bạn đã chiến thắng máy.",
+        icon: <TrophyOutlined style={{ color: "gold" }} />,
+        okText: "Chơi ván mới",
+        onOk: resetGame,
+      });
+    } else {
+      Modal.error({
+        title: "THẤT BẠI",
+        content: "Bạn đã hết nước đi hoặc máy đã thắng.",
+        icon: <FrownOutlined style={{ color: "red" }} />,
+        okText: "Thử lại",
+        onOk: resetGame,
+      });
+    }
+  };
 
   // --- GAME LOGIC ---
   const handlePlayerMove = (r: number, c: number) => {
-    if (isAiThinking || board[r][c] !== null) return;
+    // Nếu game đã kết thúc hoặc máy đang nghĩ -> chặn
+    if (winner || isAiThinking || board[r][c] !== null) return;
 
-    const result = tryPlaceStone(r, c, board, "black");
+    const result = tryPlaceStone(r, c, board, "black", koPos);
+
     if (!result.isValid) {
       if (result.message)
         notification.warning({ message: result.message, duration: 2 });
@@ -31,43 +70,82 @@ const App: React.FC = () => {
     }
 
     if (result.newBoard) {
-      setBoard(result.newBoard);
+      const newBoard = result.newBoard;
+      const nextKo = result.nextKoPos ?? null;
+
+      setBoard(newBoard);
+      setKoPos(nextKo); // Cập nhật Ko cho lượt sau
       setLastMove([r, c]);
       setPrisoners((p) => ({
         ...p,
         black: p.black + (result.capturedCount || 0),
       }));
+
+      // KIỂM TRA THẮNG THUA:
+      // Sau khi mình đi, kiểm tra xem Máy (White) còn nước đi nào hợp lệ không?
+      const aiCanMove = hasAnyValidMoves(newBoard, "white", nextKo);
+      if (!aiCanMove) {
+        handleGameOver("black"); // Máy hết đường -> Mình thắng
+        return;
+      }
+
       setCurrentPlayer("white");
       setIsAiThinking(true);
     }
   };
 
   const processAiTurn = useCallback(() => {
+    if (winner) return;
+
     setTimeout(() => {
-      const move = getBestMove(board, "white");
+      // Máy tính toán nước đi
+      const move = getBestMove(board, "white", koPos);
+
+      // Trường hợp 1: Máy không tìm thấy nước đi (Đầu hàng)
       if (!move) {
-        notification.info({ message: "AI Passed / Gave up" });
-        setIsAiThinking(false);
+        notification.info({ message: "AI đã đầu hàng!" });
+        handleGameOver("black");
         return;
       }
+
       const [r, c] = move;
-      const result = tryPlaceStone(r, c, board, "white");
+      const result = tryPlaceStone(r, c, board, "white", koPos);
+
       if (result.isValid && result.newBoard) {
-        setBoard(result.newBoard);
+        const newBoard = result.newBoard;
+        const nextKo = result.nextKoPos ?? null;
+
+        setBoard(newBoard);
+        setKoPos(nextKo);
         setLastMove([r, c]);
         setPrisoners((p) => ({
           ...p,
           white: p.white + (result.capturedCount || 0),
         }));
+
+        // KIỂM TRA THẮNG THUA:
+        // Sau khi máy đi, kiểm tra xem Bạn (Black) còn nước đi nào hợp lệ không?
+        const humanCanMove = hasAnyValidMoves(newBoard, "black", nextKo);
+        if (!humanCanMove) {
+          handleGameOver("white"); // Bạn hết đường -> Máy thắng
+        } else {
+          setCurrentPlayer("black");
+        }
+      } else {
+        // Fallback hiếm gặp nếu AI tính sai
+        setIsAiThinking(false);
         setCurrentPlayer("black");
       }
+
       setIsAiThinking(false);
     }, 500);
-  }, [board]);
+  }, [board, koPos, winner]); // eslint-disable-line
 
   useEffect(() => {
-    if (currentPlayer === "white" && isAiThinking) processAiTurn();
-  }, [currentPlayer, isAiThinking, processAiTurn]);
+    if (currentPlayer === "white" && isAiThinking && !winner) {
+      processAiTurn();
+    }
+  }, [currentPlayer, isAiThinking, processAiTurn, winner]);
 
   const resetGame = () => {
     setBoard(
@@ -79,6 +157,8 @@ const App: React.FC = () => {
     setIsAiThinking(false);
     setLastMove(null);
     setPrisoners({ black: 0, white: 0 });
+    setKoPos(null);
+    setWinner(null);
   };
 
   // --- RENDER ---
@@ -88,21 +168,36 @@ const App: React.FC = () => {
       <div className="sidebar">
         <h1 className="game-title">Cờ Vây</h1>
 
-        {/* Mobile Mini Status (Chỉ hiện trên mobile) */}
+        {/* Mobile Mini Status */}
         <div className="mobile-status">
           <span>Bạn: {prisoners.black}</span>
           <span
-            style={{ color: currentPlayer === "black" ? "#e74c3c" : "#ccc" }}
+            style={{
+              color: winner
+                ? "gold"
+                : currentPlayer === "black"
+                ? "#e74c3c"
+                : "#ccc",
+              fontWeight: "bold",
+            }}
           >
-            {currentPlayer === "black" ? "Lượt bạn" : "Máy..."}
+            {winner
+              ? "KẾT THÚC"
+              : currentPlayer === "black"
+              ? "Lượt bạn"
+              : "Máy..."}
           </span>
           <span>Máy: {prisoners.white}</span>
         </div>
 
-        {/* Desktop Status Card (Ẩn trên mobile) */}
+        {/* Desktop Status Card */}
         <div className="status-card">
           <div className="turn-indicator">
-            {currentPlayer === "black"
+            {winner
+              ? winner === "black"
+                ? "BẠN THẮNG!"
+                : "MÁY THẮNG!"
+              : currentPlayer === "black"
               ? "Đến lượt bạn"
               : "Máy đang suy nghĩ..."}
           </div>
